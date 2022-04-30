@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { DatabaseModule } from 'database';
 import { AppController } from './app.controller';
 import { validate } from 'environment';
+import { MeetModule } from 'meet/meet.module';
 
 @Module({
   imports: [
@@ -10,7 +10,8 @@ import { validate } from 'environment';
       isGlobal: true,
       validate: validate,
     }),
-    DatabaseModule,
+    // DatabaseModule,
+    MeetModule,
   ],
   controllers: [AppController],
   providers: [],
