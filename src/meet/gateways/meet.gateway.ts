@@ -30,20 +30,18 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('join')
-  onJoin(client: Socket, { room, peer }): void {
-    this.logger.log(`Client ${client.id} joined room ${room}`);
+  onJoin(socket: Socket, { room, peer }): void {
+    this.logger.log(`Client ${socket.id} joined room ${room}`);
 
-    this.meetRepository.joinRoom(room, client);
+    this.meetRepository.joinRoom(room, socket);
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
-    console.log(sockets);
+    const payload = { event: 'join', data: { id: socket.id, peer } };
 
     sockets.forEach((socket: Socket) => {
-      socket.emit('joined', JSON.stringify({ id: client.id, peer }));
+      socket.send(JSON.stringify(payload));
     });
-
-    this.server.emit('joined', JSON.stringify({ id: client.id, peer }));
   }
 
   @SubscribeMessage('message')
