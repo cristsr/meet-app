@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { ENV } from 'environment';
 import { listRoutes } from 'utils';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,6 +18,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   app.enableVersioning();
+
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   const showDocs: boolean = configService.get(ENV.SHOW_DOCS);
 
