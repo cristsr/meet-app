@@ -10,7 +10,7 @@ import { Socket } from 'meet/types';
 import { MeetRepository } from 'meet/repositories';
 import { Logger } from '@nestjs/common';
 
-@WebSocketGateway({ path: '/meet' })
+@WebSocketGateway({ namespace: '/meet' })
 export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private logger = new Logger(MeetGateway.name);
 
