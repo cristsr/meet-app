@@ -93,6 +93,8 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('message')
   handleMessage(client: Socket, message: unknown): void {
-    client.send(serialize(message));
+    this.server.clients.forEach((socket: Socket) => {
+      socket.send(serialize(message));
+    });
   }
 }
