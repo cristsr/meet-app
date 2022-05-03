@@ -10,15 +10,15 @@ export class MeetRepository {
     if (!this.rooms.has(room)) {
       this.rooms.set(room, new Set());
     }
-    this.rooms.get(room).add(socket.id);
-    this.sockets.set(socket.id, socket);
+    this.rooms.get(room).add(socket.data.id);
+    this.sockets.set(socket.data.id, socket);
   }
 
   leaveRoom(room: string, socket: Socket): void {
     if (this.rooms.has(room)) {
-      this.rooms.get(room).delete(socket.id);
+      this.rooms.get(room).delete(socket.data.id);
     }
-    this.sockets.delete(socket.id);
+    this.sockets.delete(socket.data.id);
   }
 
   getRoomSockets(room: string): Socket[] {

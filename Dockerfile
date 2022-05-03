@@ -16,5 +16,6 @@ RUN npm install ci --only=production --ignore-scripts
 EXPOSE 3000
 CMD ["npm", "run", "start:prod"]
 
+# git push heroku master:master
 # docker build -t boilerplate:latest .
 # docker run -d -p 3000:3000 boilerplate:latest

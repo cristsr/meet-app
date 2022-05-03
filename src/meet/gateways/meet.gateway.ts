@@ -20,24 +20,27 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(private meetRepository: MeetRepository) {}
 
-  handleConnection(client: Socket): void {
-    client.id = randomBytes(10).toString('hex');
-    this.logger.log(`Client connected: ${client.id}`);
+  handleConnection(socket: Socket): void {
+    socket.data = {};
+    socket.data.id = randomBytes(10).toString('hex');
+    this.logger.log(`Client connected: ${socket.data.id}`);
   }
 
-  handleDisconnect(client: Socket): void {
-    this.logger.log(`Client disconnected: ${client.id}`);
+  handleDisconnect(socket: Socket): void {
+    this.logger.log(`Client disconnected: ${socket.data.id}`);
   }
 
   @SubscribeMessage('join')
-  onJoin(socket: Socket, { room, peer }): void {
-    this.logger.log(`Client ${socket.id} joined room ${room}`);
+  onJoin(socket: Socket, { room, name }): void {
+    this.logger.log(`Client ${socket.data.id} joined room ${room}`);
+
+    socket.data.name = name;
 
     this.meetRepository.joinRoom(room, socket);
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
-    const payload = { event: 'join', data: { id: socket.id, peer } };
+    const payload = { event: 'join', data: { id: socket.data.id, name } };
 
     sockets.forEach((socket: Socket) => {
       socket.send(JSON.stringify(payload));
@@ -46,13 +49,13 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('leave')
   onLeave(socket: Socket, { room }): void {
-    this.logger.log(`Client ${socket.id} left room ${room}`);
+    this.logger.log(`Client ${socket.data.id} left room ${room}`);
 
     this.meetRepository.leaveRoom(room, socket);
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
-    const payload = { event: 'leave', data: { id: socket.id } };
+    const payload = { event: 'leave', data: { id: socket.data.id } };
 
     sockets.forEach((socket: Socket) => {
       socket.send(JSON.stringify(payload));

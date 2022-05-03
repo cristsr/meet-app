@@ -1,13 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { CreateMeetDto } from '../dto/create-meet.dto';
+import { MeetRepository } from 'meet/repositories';
 
 @Injectable()
 export class MeetService {
-  create(createMeetDto: CreateMeetDto) {
-    return 'This action adds a new meet';
-  }
+  constructor(private meetRepository: MeetRepository) {}
 
-  joinRoom(roomUuid: string) {
-    return roomUuid;
+  joinRoom(uuid: string) {
+    return uuid;
   }
 }
