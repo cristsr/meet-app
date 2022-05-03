@@ -6,28 +6,46 @@ export class MeetRepository {
   sockets = new Map<string, Socket>();
   rooms = new Map<string, Set<string>>();
 
-  joinRoom(room: string, socket: Socket): void {
-    if (!this.rooms.has(room)) {
-      this.rooms.set(room, new Set());
-    }
-    this.rooms.get(room).add(socket.id);
+  addSocket(socket: Socket) {
     this.sockets.set(socket.id, socket);
   }
 
-  leaveRoom(room: string, socket: Socket): void {
-    if (this.rooms.has(room)) {
-      this.rooms.get(room).delete(socket.id);
+  removeSocket(socketId: string) {
+    this.sockets.delete(socketId);
+  }
+
+  joinRoom(room: string, socketId: string): void {
+    if (!this.rooms.has(room)) {
+      this.rooms.set(room, new Set());
     }
-    this.sockets.delete(socket.id);
+    this.rooms.get(room).add(socketId);
+  }
+
+  leaveRoom(room: string, socketId: string): void {
+    if (this.rooms.has(room)) {
+      this.rooms.get(room).delete(socketId);
+    }
   }
 
   getRoomSockets(room: string): Socket[] {
-    const ids = Array.from(this.rooms.get(room).values());
+    const ids = Array.from(this.rooms.get(room).values()).filter((id) => {
+      if (this.sockets.has(id)) {
+        return true;
+      }
+
+      this.rooms.get(room).delete(id);
+
+      return false;
+    });
 
     if (!ids) {
       return [];
     }
 
     return ids.map((id) => this.sockets.get(id));
+  }
+
+  getAllSockets(): Socket[] {
+    return Array.from(this.sockets.values());
   }
 }

@@ -5,47 +5,75 @@ import {
   WebSocketGateway,
   WebSocketServer as WsServer,
 } from '@nestjs/websockets';
-import { randomBytes } from 'crypto';
-import { WebSocketServer } from 'ws';
+import { Server } from 'socket.io';
 import { Socket } from 'meet/types';
 import { MeetRepository } from 'meet/repositories';
 import { Logger } from '@nestjs/common';
 
-@WebSocketGateway({ path: '/meet' })
+@WebSocketGateway({ namespace: '/meet' })
 export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private logger = new Logger(MeetGateway.name);
 
   @WsServer()
-  private server: WebSocketServer;
+  private server: Server;
 
   constructor(private meetRepository: MeetRepository) {}
 
-  handleConnection(client: Socket): void {
-    client.id = randomBytes(10).toString('hex');
-    this.logger.log(`Client connected: ${client.id}`);
+  handleConnection(socket: Socket): void {
+    socket.data = {};
+    this.logger.log(`Client connected: ${socket.id}`);
   }
 
-  handleDisconnect(client: Socket): void {
-    this.logger.log(`Client disconnected: ${client.id}`);
+  handleDisconnect(socket: Socket): void {
+    this.logger.log(`Client disconnected: ${socket.id}`);
+    this.meetRepository.removeSocket(socket.id);
   }
 
   @SubscribeMessage('join')
-  onJoin(socket: Socket, { room, peer }): void {
-    this.logger.log(`Client ${socket.id} joined room ${room}`);
+  onJoin(socket: Socket, { room, name, peer }): void {
+    this.logger.log(`Client ${socket.id} - ${name} joined room ${room}`);
 
-    this.meetRepository.joinRoom(room, socket);
+    socket.data.name = name;
+    socket.data.peer = peer;
+
+    this.meetRepository.addSocket(socket);
+    this.meetRepository.joinRoom(room, socket.id);
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
-    const payload = { event: 'join', data: { id: socket.id, peer } };
+    sockets.forEach((_socket: Socket) => {
+      if (_socket.id === socket.id) {
+        return;
+      }
 
-    sockets.forEach((socket: Socket) => {
-      socket.send(JSON.stringify(payload));
+      _socket.emit('userConnected', {
+        id: socket.id,
+        peer: socket.data.peer,
+        name: socket.data.name,
+      });
+    });
+
+    socket.emit('users', {
+      users: sockets.map((socket: Socket) => ({
+        id: socket.id,
+        peer: socket.data.peer,
+        name: socket.data.name,
+      })),
     });
   }
 
-  @SubscribeMessage('message')
-  handleMessage(client: any, payload: any): string {
-    return 'Hello world!';
+  @SubscribeMessage('leave')
+  onLeave(socket: Socket, room: string): void {
+    this.logger.log(
+      `Client ${socket.id} - ${socket.data.name} left room ${room}`,
+    );
+
+    this.meetRepository.leaveRoom(room, socket.id);
+
+    const sockets = this.meetRepository.getRoomSockets(room);
+
+    sockets.forEach((socket: Socket) => {
+      socket.emit('leave', socket.id);
+    });
   }
 }

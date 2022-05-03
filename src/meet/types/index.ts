@@ -1,5 +1,5 @@
-import { WebSocket } from 'ws';
+import { Socket as WebSocket } from 'socket.io';
 
 export interface Socket extends WebSocket {
-  id: string;
+  data: Record<string, any>;
 }
