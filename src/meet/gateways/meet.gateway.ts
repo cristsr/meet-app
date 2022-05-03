@@ -52,9 +52,9 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
         serialize({
           event: 'userConnected',
           data: {
-            id: _socket.data.id,
-            peer: _socket.data.peer,
-            name: _socket.data.name,
+            id: socket.data.id,
+            peer: socket.data.peer,
+            name: socket.data.name,
           },
         }),
       );
