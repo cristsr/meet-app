@@ -22,7 +22,6 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleConnection(socket: Socket): void {
     socket.data = {};
     this.logger.log(`Client connected: ${socket.id}`);
-    this.meetRepository.addSocket(socket);
   }
 
   handleDisconnect(socket: Socket): void {
@@ -37,6 +36,7 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
     socket.data.name = name;
     socket.data.peer = peer;
 
+    this.meetRepository.addSocket(socket);
     this.meetRepository.joinRoom(room, socket.id);
 
     const sockets = this.meetRepository.getRoomSockets(room);
