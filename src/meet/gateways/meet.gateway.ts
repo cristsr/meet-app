@@ -10,6 +10,7 @@ import { WebSocketServer } from 'ws';
 import { Socket } from 'meet/types';
 import { MeetRepository } from 'meet/repositories';
 import { Logger } from '@nestjs/common';
+import { serialize } from 'class-transformer';
 
 @WebSocketGateway({ path: '/meet' })
 export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -42,20 +43,25 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
-    sockets.forEach((socket: Socket) => {
-      socket.send(
-        JSON.stringify({
-          event: 'join',
+    sockets.forEach((_socket: Socket) => {
+      if (_socket.data.id === socket.data.id) {
+        return;
+      }
+
+      _socket.send(
+        serialize({
+          event: 'userConnected',
           data: {
-            id: socket.data.id,
-            name,
+            id: _socket.data.id,
+            peer: _socket.data.peer,
+            name: _socket.data.name,
           },
         }),
       );
     });
 
     socket.send(
-      JSON.stringify({
+      serialize({
         event: 'users',
         data: {
           users: sockets.map((socket: Socket) => ({
