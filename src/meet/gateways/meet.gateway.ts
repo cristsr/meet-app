@@ -78,7 +78,7 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   onLeave(socket: Socket, { room }): void {
     const { id, name } = socket.data;
 
-    this.logger.log(`Client ${id}  - ${name} left room ${room}`);
+    this.logger.log(`Client ${id} - ${name} left room ${room}`);
 
     this.meetRepository.leaveRoom(room, socket);
 
