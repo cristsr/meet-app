@@ -5,36 +5,32 @@ import {
   WebSocketGateway,
   WebSocketServer as WsServer,
 } from '@nestjs/websockets';
-import { randomBytes } from 'crypto';
-import { WebSocketServer } from 'ws';
+import { Server } from 'socket.io';
 import { Socket } from 'meet/types';
 import { MeetRepository } from 'meet/repositories';
 import { Logger } from '@nestjs/common';
-import { serialize } from 'class-transformer';
 
 @WebSocketGateway({ path: '/meet' })
 export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private logger = new Logger(MeetGateway.name);
 
   @WsServer()
-  private server: WebSocketServer;
+  private server: Server;
 
   constructor(private meetRepository: MeetRepository) {}
 
   handleConnection(socket: Socket): void {
     socket.data = {};
-    socket.data.id = randomBytes(10).toString('hex');
-
-    this.logger.log(`Client connected: ${socket.data.id}`);
+    this.logger.log(`Client connected: ${socket.id}`);
   }
 
   handleDisconnect(socket: Socket): void {
-    this.logger.log(`Client disconnected: ${socket.data.id}`);
+    this.logger.log(`Client disconnected: ${socket.id}`);
   }
 
   @SubscribeMessage('join')
   onJoin(socket: Socket, { room, name, peer }): void {
-    this.logger.log(`Client ${socket.data.id} - ${name} joined room ${room}`);
+    this.logger.log(`Client ${socket.id} - ${name} joined room ${room}`);
 
     socket.data.name = name;
     socket.data.peer = peer;
@@ -44,57 +40,38 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const sockets = this.meetRepository.getRoomSockets(room);
 
     sockets.forEach((_socket: Socket) => {
-      if (_socket.data.id === socket.data.id) {
+      if (_socket.id === socket.id) {
         return;
       }
 
-      _socket.send(
-        serialize({
-          event: 'userConnected',
-          data: {
-            id: socket.data.id,
-            peer: socket.data.peer,
-            name: socket.data.name,
-          },
-        }),
-      );
+      _socket.emit('userConnected', {
+        id: socket.id,
+        peer: socket.data.peer,
+        name: socket.data.name,
+      });
     });
 
-    socket.send(
-      serialize({
-        event: 'users',
-        data: {
-          users: sockets.map((socket: Socket) => ({
-            id: socket.data.id,
-            peer: socket.data.peer,
-            name: socket.data.name,
-          })),
-        },
-      }),
-    );
+    socket.emit('users', {
+      users: sockets.map((socket: Socket) => ({
+        id: socket.id,
+        peer: socket.data.peer,
+        name: socket.data.name,
+      })),
+    });
   }
 
   @SubscribeMessage('leave')
   onLeave(socket: Socket, { room }): void {
-    const { id, name } = socket.data;
-
-    this.logger.log(`Client ${id} - ${name} left room ${room}`);
+    this.logger.log(
+      `Client ${socket.id} - ${socket.data.name} left room ${room}`,
+    );
 
     this.meetRepository.leaveRoom(room, socket);
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
-    const payload = { event: 'leave', data: { id } };
-
     sockets.forEach((socket: Socket) => {
-      socket.send(serialize(payload));
-    });
-  }
-
-  @SubscribeMessage('message')
-  handleMessage(client: Socket, message: unknown): void {
-    this.server.clients.forEach((socket: Socket) => {
-      socket.send(serialize(message));
+      socket.emit('leave', socket.id);
     });
   }
 }
