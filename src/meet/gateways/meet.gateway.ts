@@ -87,12 +87,12 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const payload = { event: 'leave', data: { id } };
 
     sockets.forEach((socket: Socket) => {
-      socket.send(JSON.stringify(payload));
+      socket.send(serialize(payload));
     });
   }
 
   @SubscribeMessage('message')
-  handleMessage(client: any, payload: any): string {
-    return 'Hello world!';
+  handleMessage(client: Socket, message: unknown): void {
+    client.send(serialize(message));
   }
 }
