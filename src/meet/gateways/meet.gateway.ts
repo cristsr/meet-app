@@ -23,6 +23,7 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleConnection(socket: Socket): void {
     socket.data = {};
     socket.data.id = randomBytes(10).toString('hex');
+
     this.logger.log(`Client connected: ${socket.data.id}`);
   }
 
@@ -31,31 +32,53 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('join')
-  onJoin(socket: Socket, { room, name }): void {
-    this.logger.log(`Client ${socket.data.id} joined room ${room}`);
+  onJoin(socket: Socket, { room, name, peer }): void {
+    this.logger.log(`Client ${socket.data.id} - ${name} joined room ${room}`);
 
     socket.data.name = name;
+    socket.data.peer = peer;
 
     this.meetRepository.joinRoom(room, socket);
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
-    const payload = { event: 'join', data: { id: socket.data.id, name } };
-
     sockets.forEach((socket: Socket) => {
-      socket.send(JSON.stringify(payload));
+      socket.send(
+        JSON.stringify({
+          event: 'join',
+          data: {
+            id: socket.data.id,
+            name,
+          },
+        }),
+      );
     });
+
+    socket.send(
+      JSON.stringify({
+        event: 'users',
+        data: {
+          users: sockets.map((socket: Socket) => ({
+            id: socket.data.id,
+            peer: socket.data.peer,
+            name: socket.data.name,
+          })),
+        },
+      }),
+    );
   }
 
   @SubscribeMessage('leave')
   onLeave(socket: Socket, { room }): void {
-    this.logger.log(`Client ${socket.data.id} left room ${room}`);
+    const { id, name } = socket.data;
+
+    this.logger.log(`Client ${id}  - ${name} left room ${room}`);
 
     this.meetRepository.leaveRoom(room, socket);
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
-    const payload = { event: 'leave', data: { id: socket.data.id } };
+    const payload = { event: 'leave', data: { id } };
 
     sockets.forEach((socket: Socket) => {
       socket.send(JSON.stringify(payload));
