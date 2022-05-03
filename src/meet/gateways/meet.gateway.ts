@@ -22,10 +22,12 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleConnection(socket: Socket): void {
     socket.data = {};
     this.logger.log(`Client connected: ${socket.id}`);
+    this.meetRepository.addSocket(socket);
   }
 
   handleDisconnect(socket: Socket): void {
     this.logger.log(`Client disconnected: ${socket.id}`);
+    this.meetRepository.removeSocket(socket.id);
   }
 
   @SubscribeMessage('join')
@@ -35,7 +37,7 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
     socket.data.name = name;
     socket.data.peer = peer;
 
-    this.meetRepository.joinRoom(room, socket);
+    this.meetRepository.joinRoom(room, socket.id);
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
@@ -66,7 +68,7 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
       `Client ${socket.id} - ${socket.data.name} left room ${room}`,
     );
 
-    this.meetRepository.leaveRoom(room, socket);
+    this.meetRepository.leaveRoom(room, socket.id);
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
