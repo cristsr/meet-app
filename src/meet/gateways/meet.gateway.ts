@@ -44,6 +44,21 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  @SubscribeMessage('leave')
+  onLeave(socket: Socket, { room }): void {
+    this.logger.log(`Client ${socket.id} left room ${room}`);
+
+    this.meetRepository.leaveRoom(room, socket);
+
+    const sockets = this.meetRepository.getRoomSockets(room);
+
+    const payload = { event: 'leave', data: { id: socket.id } };
+
+    sockets.forEach((socket: Socket) => {
+      socket.send(JSON.stringify(payload));
+    });
+  }
+
   @SubscribeMessage('message')
   handleMessage(client: any, payload: any): string {
     return 'Hello world!';
