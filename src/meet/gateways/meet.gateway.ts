@@ -63,7 +63,7 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('leave')
-  onLeave(socket: Socket, room): void {
+  onLeave(socket: Socket, room: string): void {
     this.logger.log(
       `Client ${socket.id} - ${socket.data.name} left room ${room}`,
     );
