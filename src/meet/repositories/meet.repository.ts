@@ -27,6 +27,13 @@ export class MeetRepository {
     }
   }
 
+  socketJoined(room: string, socketId: string): boolean {
+    if (this.rooms.has(room)) {
+      return this.rooms.get(room).has(socketId);
+    }
+    return false;
+  }
+
   getRoomSockets(room: string): Socket[] {
     const ids = Array.from(this.rooms.get(room).values()).filter((id) => {
       if (this.sockets.has(id)) {
@@ -43,9 +50,5 @@ export class MeetRepository {
     }
 
     return ids.map((id) => this.sockets.get(id));
-  }
-
-  getAllSockets(): Socket[] {
-    return Array.from(this.sockets.values());
   }
 }
