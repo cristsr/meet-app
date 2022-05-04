@@ -39,11 +39,13 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.meetRepository.addSocket(socket);
     this.meetRepository.joinRoom(room, socket.id);
 
-    const sockets = this.meetRepository
-      .getRoomSockets(room)
-      .filter((_socket: Socket) => _socket.id !== socket.id);
+    const sockets = this.meetRepository.getRoomSockets(room);
 
     sockets.forEach((_socket: Socket) => {
+      if (_socket.id === socket.id) {
+        return;
+      }
+
       _socket.emit('userConnected', {
         id: socket.id,
         peer: socket.data.peer,
@@ -68,12 +70,11 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     this.meetRepository.leaveRoom(room, socket.id);
 
-    const sockets = this.meetRepository
+    this.meetRepository
       .getRoomSockets(room)
-      .filter((_socket: Socket) => _socket.id !== socket.id);
-
-    sockets.forEach((_socket: Socket) => {
-      _socket.emit('leave', socket.id);
-    });
+      .filter((_socket: Socket) => _socket.id !== socket.id)
+      .forEach((_socket: Socket) => {
+        _socket.emit('leave', socket.id);
+      });
   }
 }
