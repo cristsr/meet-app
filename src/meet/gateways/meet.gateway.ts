@@ -72,8 +72,12 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const sockets = this.meetRepository.getRoomSockets(room);
 
-    sockets.forEach((socket: Socket) => {
-      socket.emit('leave', socket.id);
+    sockets.forEach((_socket: Socket) => {
+      if (_socket.id === socket.id) {
+        return;
+      }
+
+      _socket.emit('leave', socket.id);
     });
   }
 }
