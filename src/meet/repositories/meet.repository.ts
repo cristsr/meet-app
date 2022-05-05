@@ -6,14 +6,6 @@ export class MeetRepository {
   sockets = new Map<string, Socket>();
   rooms = new Map<string, Set<string>>();
 
-  addSocket(socket: Socket) {
-    this.sockets.set(socket.id, socket);
-  }
-
-  removeSocket(socketId: string) {
-    this.sockets.delete(socketId);
-  }
-
   joinRoom(room: string, socketId: string): void {
     if (!this.rooms.has(room)) {
       this.rooms.set(room, new Set());
@@ -27,28 +19,34 @@ export class MeetRepository {
     }
   }
 
-  socketJoined(room: string, socketId: string): boolean {
+  addSocket(socket: Socket): void {
+    this.sockets.set(socket.id, socket);
+  }
+
+  removeSocket(socketId: string): void {
+    this.sockets.delete(socketId);
+  }
+
+  socketInRoom(room: string, socketId: string): boolean {
     if (this.rooms.has(room)) {
       return this.rooms.get(room).has(socketId);
     }
     return false;
   }
 
-  getRoomSockets(room: string): Socket[] {
-    const ids = Array.from(this.rooms.get(room).values()).filter((id) => {
-      if (this.sockets.has(id)) {
-        return true;
+  getSocketsInRoom(room: string): Socket[] {
+    this.rooms.get(room).forEach((socketId) => {
+      if (!this.sockets.has(socketId)) {
+        this.rooms.get(room).delete(socketId);
       }
-
-      this.rooms.get(room).delete(id);
-
-      return false;
     });
+
+    const ids = Array.from(this.rooms.get(room).values());
 
     if (!ids) {
       return [];
     }
 
-    return ids.map((id) => this.sockets.get(id));
+    return ids.map((id: string) => this.sockets.get(id));
   }
 }

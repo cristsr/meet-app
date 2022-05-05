@@ -26,27 +26,31 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(socket: Socket): void {
     this.logger.log(`Client disconnected: ${socket.id}`);
-    this.onLeave(socket, socket.data.room);
+
+    const data = socket.data;
+
+    if (data.room) {
+      this.leaveRoom(socket, data.room);
+    }
+
     this.meetRepository.removeSocket(socket.id);
   }
 
   @SubscribeMessage('join')
   onJoin(socket: Socket, { room, name, peer }): void {
-    if (this.meetRepository.socketJoined(room, socket.id)) {
+    if (this.meetRepository.socketInRoom(room, socket.id)) {
       this.logger.log(
         `Client ${socket.id} - ${name} already joined room ${room}`,
       );
       return;
     }
 
-    socket.data.name = name;
-    socket.data.peer = peer;
-    socket.data.room = room;
+    socket.data = { room, name, peer };
 
     this.meetRepository.addSocket(socket);
     this.meetRepository.joinRoom(room, socket.id);
 
-    const sockets = this.meetRepository.getRoomSockets(room);
+    const sockets = this.meetRepository.getSocketsInRoom(room);
 
     sockets.forEach((_socket: Socket) => {
       if (_socket.id === socket.id) {
@@ -73,18 +77,21 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('leave')
   onLeave(socket: Socket, room: string): void {
-    if (!this.meetRepository.socketJoined(room, socket.id)) {
+    this.leaveRoom(socket, room);
+  }
+
+  private leaveRoom(socket: Socket, room: string): void {
+    if (!this.meetRepository.socketInRoom(room, socket.id)) {
       this.logger.log(
         `Client ${socket.id} - ${socket.data.name} already left room ${room}`,
       );
-
       return;
     }
 
     this.meetRepository.leaveRoom(room, socket.id);
 
     this.meetRepository
-      .getRoomSockets(room)
+      .getSocketsInRoom(room)
       .filter((_socket: Socket) => _socket.id !== socket.id)
       .forEach((_socket: Socket) => {
         _socket.emit('leave', socket.id);
