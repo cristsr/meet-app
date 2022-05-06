@@ -37,7 +37,7 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('join')
-  onJoin(socket: Socket, { room, name, peer }): void {
+  onJoin(socket: Socket, { room, name, peer }: Record<string, string>): void {
     if (this.meetRepository.socketInRoom(room, socket.id)) {
       this.logger.log(
         `Client ${socket.id} - ${name} already joined room ${room}`,
