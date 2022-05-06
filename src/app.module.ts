@@ -10,7 +10,6 @@ import { MeetModule } from 'meet/meet.module';
       isGlobal: true,
       validate: validate,
     }),
-    // DatabaseModule,
     MeetModule,
   ],
   controllers: [AppController],
