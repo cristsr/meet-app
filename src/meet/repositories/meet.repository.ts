@@ -43,10 +43,6 @@ export class MeetRepository {
 
     const ids = Array.from(this.rooms.get(room).values());
 
-    if (!ids) {
-      return [];
-    }
-
     return ids.map((id: string) => this.sockets.get(id));
   }
 }

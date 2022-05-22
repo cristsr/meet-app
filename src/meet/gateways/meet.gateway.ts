@@ -20,13 +20,17 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(private meetRepository: MeetRepository) {}
 
   handleConnection(socket: Socket): void {
-    socket.data = {};
+    // Initialize socket data
+    socket.data = {
+      room: null,
+      name: null,
+      peer: null,
+    };
+
     this.logger.log(`Client connected: ${socket.id}`);
   }
 
   handleDisconnect(socket: Socket): void {
-    this.logger.log(`Client disconnected: ${socket.id}`);
-
     const data = socket.data;
 
     if (data.room) {
@@ -34,24 +38,35 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     this.meetRepository.removeSocket(socket.id);
+
+    this.logger.log(`Client disconnected: ${socket.id}`);
   }
 
   @SubscribeMessage('join')
   onJoin(socket: Socket, { room, name, peer }: Record<string, string>): void {
+    // Check if socket is already in room
     if (this.meetRepository.socketInRoom(room, socket.id)) {
-      this.logger.log(
-        `Client ${socket.id} - ${name} already joined room ${room}`,
-      );
+      this.logger.log(`Client ${socket.id} already joined room ${room}`);
       return;
     }
 
-    socket.data = { room, name, peer };
+    // Set socket data
+    socket.data = {
+      room,
+      name,
+      peer,
+    };
 
+    // Add socket to repository
     this.meetRepository.addSocket(socket);
+
+    // Join socket to room
     this.meetRepository.joinRoom(room, socket.id);
 
+    // Get sockets in room
     const sockets = this.meetRepository.getSocketsInRoom(room);
 
+    // Emit event to users in room
     sockets.forEach((_socket: Socket) => {
       if (_socket.id === socket.id) {
         return;
@@ -64,6 +79,7 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
     });
 
+    // Emit event to self
     socket.emit('users', {
       users: sockets.map((socket: Socket) => ({
         id: socket.id,
@@ -81,15 +97,16 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private leaveRoom(socket: Socket, room: string): void {
+    // Check if socket left room
     if (!this.meetRepository.socketInRoom(room, socket.id)) {
-      this.logger.log(
-        `Client ${socket.id} - ${socket.data.name} already left room ${room}`,
-      );
+      this.logger.log(`Client ${socket.id} already left room ${room}`);
       return;
     }
 
+    // Leave socket from room
     this.meetRepository.leaveRoom(room, socket.id);
 
+    // Notify to room that user left
     this.meetRepository
       .getSocketsInRoom(room)
       .filter((_socket: Socket) => _socket.id !== socket.id)
@@ -97,8 +114,6 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
         _socket.emit('leave', socket.id);
       });
 
-    this.logger.log(
-      `Client ${socket.id} - ${socket.data.name} left room ${room}`,
-    );
+    this.logger.log(`Client ${socket.id} left room ${room}`);
   }
 }
