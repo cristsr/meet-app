@@ -6,7 +6,7 @@ import {
   WebSocketServer as WsServer,
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
-import { Socket } from 'meet/types';
+import { Session, Socket } from 'meet/types';
 import { MeetRepository } from 'meet/repositories';
 import { Logger } from '@nestjs/common';
 
@@ -27,26 +27,38 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
       peer: null,
     };
 
-    this.logger.log(`Client connected: ${socket.id}`);
+    this.logger.log(`Socket connected: ${socket.id}`);
   }
 
   handleDisconnect(socket: Socket): void {
-    const data = socket.data;
-
-    if (data.room) {
-      this.leaveRoom(socket, data.room);
+    // If socket is in room, remove it from room
+    if (socket.data.room) {
+      this.leaveRoom(socket);
     }
 
+    // Remove socket from repository
     this.meetRepository.removeSocket(socket.id);
 
-    this.logger.log(`Client disconnected: ${socket.id}`);
+    this.logger.log(`Socket disconnected: ${socket.id}`);
+  }
+
+  @SubscribeMessage('createRoom')
+  createRoom(socket: Socket) {
+    const room = this.meetRepository.createRoom();
+    socket.emit('createRoom', room);
   }
 
   @SubscribeMessage('join')
-  onJoin(socket: Socket, { room, name, peer }: Record<string, string>): void {
+  join(socket: Socket, { room, name, peer }: Session): void {
+    // Verify if room exists
+    if (!this.meetRepository.existRoom(room)) {
+      socket.emit('error', { code: 404, message: 'Room not found' });
+      return;
+    }
+
     // Check if socket is already in room
-    if (this.meetRepository.socketInRoom(room, socket.id)) {
-      this.logger.log(`Client ${socket.id} already joined room ${room}`);
+    if (this.meetRepository.isSocketInRoom(room, socket.id)) {
+      this.logger.log(`Socket ${socket.id} already joined room ${room}`);
       return;
     }
 
@@ -66,39 +78,50 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Get sockets in room
     const sockets = this.meetRepository.getSocketsInRoom(room);
 
-    // Emit event to users in room
-    sockets.forEach((_socket: Socket) => {
-      if (_socket.id === socket.id) {
-        return;
-      }
-
-      _socket.emit('userConnected', {
-        id: socket.id,
-        peer: socket.data.peer,
-        name: socket.data.name,
-      });
-    });
-
     // Emit event to self
     socket.emit('users', {
-      users: sockets.map((socket: Socket) => ({
-        id: socket.id,
-        peer: socket.data.peer,
-        name: socket.data.name,
+      users: sockets.map((s: Socket) => ({
+        id: s.id,
+        peer: s.data.peer,
+        name: s.data.name,
       })),
     });
 
-    this.logger.log(`Client ${socket.id} - ${name} joined room ${room}`);
+    // Emit event to users in room
+    sockets
+      .filter((s: Socket) => s.id !== socket.id)
+      .forEach((s: Socket) => {
+        s.emit('userConnected', {
+          id: socket.id,
+          peer: socket.data.peer,
+          name: socket.data.name,
+        });
+      });
+
+    this.logger.log(`Socket ${socket.id} - ${name} joined room ${room}`);
   }
 
   @SubscribeMessage('leave')
-  onLeave(socket: Socket, room: string): void {
-    this.leaveRoom(socket, room);
+  leave(socket: Socket): void {
+    this.leaveRoom(socket);
   }
 
-  private leaveRoom(socket: Socket, room: string): void {
+  private leaveRoom(socket: Socket): void {
+    const room = socket.data.room;
+
+    // Do nothing if room is not set
+    if (!room) {
+      return;
+    }
+
+    // Check room exists
+    if (!this.meetRepository.existRoom(room)) {
+      this.logger.log(`Room not found: ${room}`);
+      return;
+    }
+
     // Check if socket left room
-    if (!this.meetRepository.socketInRoom(room, socket.id)) {
+    if (!this.meetRepository.isSocketInRoom(room, socket.id)) {
       this.logger.log(`Client ${socket.id} already left room ${room}`);
       return;
     }
@@ -106,13 +129,13 @@ export class MeetGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Leave socket from room
     this.meetRepository.leaveRoom(room, socket.id);
 
+    // Set room to null
+    socket.data.room = null;
+
     // Notify to room that user left
     this.meetRepository
       .getSocketsInRoom(room)
-      .filter((_socket: Socket) => _socket.id !== socket.id)
-      .forEach((_socket: Socket) => {
-        _socket.emit('leave', socket.id);
-      });
+      .forEach((s: Socket) => s.emit('leave', socket.id));
 
     this.logger.log(`Client ${socket.id} left room ${room}`);
   }

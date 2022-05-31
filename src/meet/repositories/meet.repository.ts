@@ -1,22 +1,64 @@
 import { Injectable } from '@nestjs/common';
 import { Socket } from 'meet/types';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class MeetRepository {
-  sockets = new Map<string, Socket>();
-  rooms = new Map<string, Set<string>>();
+  private sockets = new Map<string, Socket>();
+  private rooms = new Map<string, Set<string>>();
+
+  existRoom(room: string): boolean {
+    return this.rooms.has(room);
+  }
+
+  createRoom(): string {
+    // Generate a random room name
+    const room = 'xxx-xxx-xxx'.replace(/xxx/g, () =>
+      randomBytes(3).toString('base64').slice(0, 3),
+    );
+
+    // Verify if the room already exists
+    if (this.rooms.has(room)) {
+      return this.createRoom();
+    }
+
+    // Create the room
+    this.rooms.set(room, new Set());
+
+    return room;
+  }
+
+  checkRoomDelete(room: string): void {
+    // Verify is the room is empty
+    if (!!this.rooms.get(room)?.size) {
+      return;
+    }
+
+    // Delete the room
+    this.rooms.delete(room);
+  }
 
   joinRoom(room: string, socketId: string): void {
     if (!this.rooms.has(room)) {
-      this.rooms.set(room, new Set());
+      return;
     }
     this.rooms.get(room).add(socketId);
   }
 
   leaveRoom(room: string, socketId: string): void {
-    if (this.rooms.has(room)) {
-      this.rooms.get(room).delete(socketId);
+    if (!this.rooms.has(room)) {
+      return;
     }
+
+    // Remove socket from room
+    this.rooms.get(room).delete(socketId);
+
+    this.checkRoomDelete(room);
+  }
+
+  getSocketsInRoom(room: string): Socket[] {
+    const socketIds = Array.from(this.rooms.get(room).values());
+    return socketIds.map((id: string) => this.sockets.get(id));
   }
 
   addSocket(socket: Socket): void {
@@ -27,22 +69,11 @@ export class MeetRepository {
     this.sockets.delete(socketId);
   }
 
-  socketInRoom(room: string, socketId: string): boolean {
-    if (this.rooms.has(room)) {
-      return this.rooms.get(room).has(socketId);
+  isSocketInRoom(room: string, socketId: string): boolean {
+    if (!this.rooms.has(room)) {
+      return false;
     }
-    return false;
-  }
 
-  getSocketsInRoom(room: string): Socket[] {
-    this.rooms.get(room).forEach((socketId) => {
-      if (!this.sockets.has(socketId)) {
-        this.rooms.get(room).delete(socketId);
-      }
-    });
-
-    const ids = Array.from(this.rooms.get(room).values());
-
-    return ids.map((id: string) => this.sockets.get(id));
+    return this.rooms.get(room).has(socketId);
   }
 }
