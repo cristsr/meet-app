@@ -57,6 +57,7 @@ export class MeetRepository {
   }
 
   getSocketsInRoom(room: string): Socket[] {
+    // Return empty array if room not exist
     const socketIds = Array.from(this.rooms.get(room)?.values() || []);
     return socketIds.map((id: string) => this.sockets.get(id));
   }
