@@ -1,11 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { Socket } from 'meet/types';
 import { randomBytes } from 'crypto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class MeetRepository {
   private sockets = new Map<string, Socket>();
   private rooms = new Map<string, Set<string>>();
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  deleteEmptyRooms(): void {
+    Array.from(this.rooms.entries())
+      .filter(([, room]) => !room.size)
+      .forEach(([id]) => this.rooms.delete(id));
+  }
 
   existRoom(room: string): boolean {
     return this.rooms.has(room);
@@ -28,18 +36,6 @@ export class MeetRepository {
     return room;
   }
 
-  checkRoomDelete(room: string): void {
-    // Verify is the room is empty
-    if (!!this.rooms.get(room)?.size) {
-      return;
-    }
-
-    const timeAwait = 10000;
-
-    // Delete the room past ten seconds
-    setTimeout(() => this.rooms.delete(room), timeAwait);
-  }
-
   joinRoom(room: string, socketId: string): void {
     if (!this.rooms.has(room)) {
       return;
@@ -54,8 +50,6 @@ export class MeetRepository {
 
     // Remove socket from room
     this.rooms.get(room).delete(socketId);
-
-    this.checkRoomDelete(room);
   }
 
   getSocketsInRoom(room: string): Socket[] {
