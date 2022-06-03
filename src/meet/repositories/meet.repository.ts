@@ -14,7 +14,7 @@ export class MeetRepository {
   createRoom(): string {
     // Generate a random room name
     const room = 'xxx-xxx-xxx'.replace(/xxx/g, () =>
-      randomBytes(3).toString('base64').slice(0, 3),
+      randomBytes(3).toString('hex').slice(0, 3),
     );
 
     // Verify if the room already exists
