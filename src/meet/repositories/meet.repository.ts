@@ -34,8 +34,10 @@ export class MeetRepository {
       return;
     }
 
-    // Delete the room
-    this.rooms.delete(room);
+    const timeAwait = 10000;
+
+    // Delete the room past ten seconds
+    setTimeout(() => this.rooms.delete(room), timeAwait);
   }
 
   joinRoom(room: string, socketId: string): void {
